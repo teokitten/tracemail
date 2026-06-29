@@ -12,6 +12,10 @@ disagreements, proof of correspondence, HR matters, legal
 preparation, or any case where the details of what was said and
 when are what matters.
 
+[See it in action →](https://teokitten.github.io/tracemail/demo.html)
+
+![Tracemail – Analytics and Notes](screenshot.png)
+
 ## What you can do with it
 
 - **Reconstruct a conversation** – filter by a person or company
@@ -44,15 +48,12 @@ when are what matters.
 
 ## Privacy
 
-Tracemail runs entirely on your machine. Your credentials are
-stored in your browser's localStorage and sent only to your
-own mail server over SSL. Nothing leaves your local network.
-There is no cloud component, no telemetry, no AI model, and
-no third-party services of any kind.
+- Runs entirely on your machine
+- Connects directly to your IMAP server over SSL
+- Credentials stored in localStorage only (never sent to any server)
+- No data uploaded, logged, or shared
+- No AI model, no cloud processing, no third-party services
 
-## Platform
-
-Linux only. Windows and macOS aren't currently supported.
 
 ## Features
 
@@ -71,25 +72,24 @@ Linux only. Windows and macOS aren't currently supported.
 - Compatible with Yahoo, Gmail, Outlook, and any standard
   IMAP server
 
+## Prerequisites
+
+**Binary (recommended):**
+Linux x86-64. No Python required. Download from Releases.
+
+**From source:**
+Python 3.11+, pip, git.
+
 ## How to run
 
-### Option 1 – Download the binary (recommended)
+### Option 1 – Download the binary
 
-1. Download the latest `tracemail` binary from
-   [GitHub Releases](https://github.com/teokitten/tracemail/releases)
-2. Make it executable:
-```bash
-   chmod +x tracemail
-```
-3. Run it:
-```bash
-   ./tracemail
-```
-4. Open your browser at `http://127.0.0.1:5050`
+1. Go to the [Releases page](https://github.com/teokitten/tracemail/releases)
+2. Download the latest `tracemail` binary
+3. `chmod +x tracemail && ./tracemail`
+4. Open http://localhost:5050 in your browser
 
 ### Option 2 – Run from source
-
-**Prerequisites:** Python 3.11 or later
 
 ```bash
 git clone https://github.com/teokitten/tracemail.git
@@ -227,7 +227,7 @@ stored credentials, cached emails, notes, and search history.
 
 ## Known limitations
 
-- Linux only – no Windows or macOS binary at this time
+- Linux only; Windows and macOS aren't currently supported.
 - Gmail requires IMAP to be manually enabled in settings
   before connecting
 - Outlook work and school accounts may have IMAP disabled
