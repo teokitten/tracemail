@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracemail – See It In Action</title>
+<style>
+:root {
+  --bg:     #0f0f14;
+  --surf:   #1a1a24;
+  --border: #2a2a3a;
+  --amber:  #f0a030;
+  --purple: #b06aff;
+  --text:   #e8e8f0;
+  --muted:  #8888a0;
+  --green:  #40c060;
+  --red:    #e05050;
+  --card:   #1f1f2e;
+  --hover:  #252535;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── LAYOUT ─────────────────────────────────────── */
+
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+#stage {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#stage-inner {
+  flex: 1;
+  max-width: 1240px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 0;
+}
+
+#char-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 12px 12px 20px;
+  flex-shrink: 0;
+}
+
+.char-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 1px;
+}
+.char-role {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+#marcus { width: 170px; display: block; }
+
+#mock-col {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px 8px 8px;
+  min-height: 0;
+}
+
+#narration {
+  flex-shrink: 0;
+  height: 138px;
+  background: var(--surf);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 24px 10px;
+}
+
+#controls {
+  flex-shrink: 0;
+  height: 50px;
+  background: #0b0b10;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
+}
+
+/* ── SCENES ──────────────────────────────────────── */
+
+.scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+.scene.active {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: all;
+}
+
+/* ── CHARACTER ANIMATIONS ───────────────────────── */
+
+.anim-idle    { animation: idle-bob 3s ease-in-out infinite; }
+.anim-worried { animation: worried-shake 2.5s ease-in-out infinite; }
+.anim-celebrate { animation: celebrate 0.65s ease-in-out 3; }
+.anim-type    { animation: type-bob 0.38s ease-in-out infinite; }
+
+@keyframes idle-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes worried-shake {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%       { transform: translateY(-3px) rotate(-0.8deg); }
+  65%       { transform: translateY(-1px) rotate(0.7deg); }
+}
+@keyframes celebrate {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30%       { transform: translateY(-20px) scale(1.05); }
+  70%       { transform: translateY(-7px) scale(1.01); }
+}
+@keyframes type-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-2px); }
+}
+
+/* ── NARRATION ───────────────────────────────────── */
+
+#scene-dots { display: flex; gap: 5px; align-items: center; }
+
+.sdot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  cursor: pointer;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+.sdot.past { background: var(--muted); }
+.sdot.now  { background: var(--amber); width: 18px; border-radius: 3px; }
+
+#ntext {
+  font-size: 0.97rem;
+  line-height: 1.65;
+  color: var(--text);
+  min-height: 3.3em;
+  word-break: break-word;
+}
+
+#cursor {
+  display: inline-block;
+  width: 2px; height: 1em;
+  background: var(--amber);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: blink 0.85s step-end infinite;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* ── CONTROLS ────────────────────────────────────── */
+
+.cbtn {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cbtn:hover { background: var(--hover); }
+.cbtn:disabled { opacity: 0.3; cursor: default; }
+
+.cbtn.pp {
+  background: rgba(240,160,48,0.1);
+  border-color: rgba(240,160,48,0.35);
+  color: var(--amber);
+}
+.cbtn.pp:hover { background: rgba(240,160,48,0.18); }
+
+#progress-track {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+}
+#progress-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.08s linear;
+}
+#scene-lbl {
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── MOCKUP BASE ─────────────────────────────────── */
+
+.mp {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 470px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.tbar {
+  background: #11111a;
+  padding: 9px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tbar-l { font-size: 13px; font-weight: 600; color: var(--amber); }
+.tbar-r { font-size: 11px; color: var(--muted); }
+
+.mtabs {
+  display: flex;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.mtab {
+  padding: 7px 12px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  cursor: default;
+  flex-shrink: 0;
+}
+.mtab.on { color: var(--amber); border-bottom-color: var(--amber); }
+
+/* filter bar */
+.mfilter-wrap {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mfilter {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 9px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.mfilter.active { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(240,160,48,0.12); }
+
+/* ── EMAIL ROWS ─────────────────────────────────── */
+
+.erow {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+}
+.erow.sel { background: var(--hover); border-left: 3px solid var(--amber); padding-left: 9px; }
+.erow-dir { font-size: 10px; font-weight: 700; margin-bottom: 1px; }
+.erow-dir.s { color: var(--amber); }
+.erow-dir.r { color: var(--purple); }
+.erow-subj { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erow-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* ── EMAIL DETAIL (right panel) ─────────────────── */
+
+.edetail { padding: 14px 16px; }
+.edetail-subj { font-size: 14px; font-weight: 700; color: var(--amber); margin-bottom: 6px; }
+.edetail-meta { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.edetail-body { font-size: 13px; color: var(--text); line-height: 1.6; }
+.edetail-box {
+  background: rgba(224,80,80,0.06);
+  border-left: 3px solid var(--red);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-top: 10px;
+}
+
+/* ── CHAT / EXCHANGE ─────────────────────────────── */
+
+#thread-chat, .s6-chat, .s7-chat, .s10-exchange-body {
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow: hidden;
+}
+
+.chat-div {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 4px 0;
+  opacity: 0;
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 72%;
+  opacity: 0;
+}
+.chat-msg.sent     { align-self: flex-end; align-items: flex-end; }
+.chat-msg.received { align-self: flex-start; align-items: flex-start; }
+
+.chat-bubble {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 13px;
+}
+.chat-msg.sent .chat-bubble     { border-color: rgba(240,160,48,0.35); }
+.chat-msg.received .chat-bubble { border-color: rgba(176,106,255,0.35); }
+
+.chat-subj { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.chat-msg.sent .chat-subj     { color: var(--amber); }
+.chat-msg.received .chat-subj { color: var(--purple); }
+
+.chat-body { font-size: 11px; color: var(--text); line-height: 1.5; }
+.chat-meta { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+.note-inline {
+  margin-top: 7px;
+  padding: 6px 9px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--purple);
+  line-height: 1.4;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.msg-in { animation: fade-up 0.3s ease forwards; }
+
+/* exchange footer */
+.exchange-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.print-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.print-btn.lit { border-color: var(--amber); color: var(--amber); }
+
+/* ── ANALYTICS ───────────────────────────────────── */
+
+.cr-row { display: flex; gap: 10px; padding: 10px 10px 6px; }
+.cr-chart-wrap {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.cr-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.cr-legend { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.cr-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+.cr-legend-item { font-size: 10px; color: var(--muted); }
+
+.cr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+.cr-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+}
+.cr-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.cr-val { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.cr-val.amber  { color: var(--amber); }
+.cr-val.purple { color: var(--purple); }
+.cr-val.red    { color: var(--red); }
+.cr-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* timeline */
+.tl-section { padding: 8px 12px 12px; }
+.tl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.tl-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.tl-gran { display: flex; gap: 4px; }
+.tl-gran-btn {
+  font-size: 10px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: default;
+  font-family: inherit;
+}
+.tl-gran-btn.on {
+  background: rgba(240,160,48,0.12);
+  border-color: rgba(240,160,48,0.4);
+  color: var(--amber);
+}
+.tl-svg { width: 100%; }
+.tl-dead {
+  opacity: 0;
+  transition: opacity 0.5s 1.2s;
+}
+
+/* ── ATTACHMENTS ─────────────────────────────────── */
+
+.att-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.att-filter {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: inherit;
+}
+.att-sort { font-size: 10px; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 3px; padding: 3px 7px; cursor: default; font-family: inherit; }
+.att-body { padding: 10px 12px; }
+.att-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.att-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  margin-bottom: 7px;
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.att-card.shown { opacity: 1; transform: scale(1); }
+.att-card.hi {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(240,160,48,0.18);
+  animation: att-pulse 2s ease-in-out infinite 0.5s;
+}
+@keyframes att-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(240,160,48,0.18); }
+  50%       { box-shadow: 0 0 0 4px rgba(240,160,48,0.32); }
+}
+.att-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.att-meta { font-size: 10px; color: var(--muted); }
+.att-actions { display: flex; gap: 6px; margin-top: 6px; }
+.att-btn {
+  font-size: 10px;
+  color: var(--amber);
+  background: rgba(240,160,48,0.08);
+  border: 1px solid rgba(240,160,48,0.3);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ── PDF PREVIEW ─────────────────────────────────── */
+
+.preview-wrap { padding: 12px; }
+.preview-fname { font-size: 13px; font-weight: 700; color: var(--amber); margin-bottom: 3px; }
+.preview-meta  { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.pdf-inner {
+  background: #1c1c28;
+  border-radius: 5px;
+  padding: 13px 14px;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+}
+.pdf-p { margin-bottom: 10px; opacity: 0; transition: opacity 0.5s; }
+.pdf-p.shown { opacity: 1; }
+.pdf-hi { background: rgba(240,160,48,0.2); border-radius: 2px; padding: 0 2px; }
+
+/* ── PRINT OVERLAY ───────────────────────────────── */
+
+.print-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--surf);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.print-overlay.shown { opacity: 1; pointer-events: all; }
+
+.print-doc {
+  background: #f5f4ef;
+  color: #1a1a1a;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 11px;
+  line-height: 1.7;
+  padding: 20px 22px;
+  flex: 1;
+  overflow: hidden;
+}
+.print-hdr  { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.print-sub  { font-size: 10px; color: #555; margin-bottom: 8px; }
+.print-hr   { border: none; border-top: 1px solid #ccc; margin-bottom: 10px; }
+.print-entry { margin-bottom: 10px; }
+.print-dir  { font-size: 10px; font-weight: 700; color: #444; letter-spacing: 0.05em; text-transform: uppercase; }
+.print-text { color: #222; }
+.print-foot { font-size: 9px; color: #888; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 6px; }
+
+/* ── WIN SCENE ───────────────────────────────────── */
+
+.win-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  padding: 20px;
+}
+.win-eye,
+.win-lbl-sm {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.win-amount {
+  font-size: 4.2rem;
+  font-weight: 700;
+  color: var(--green);
+  text-shadow: 0 0 40px rgba(64,192,96,0.3);
+  opacity: 0;
+  transform: scale(0.65);
+  transition: opacity 0.5s cubic-bezier(0.34,1.56,0.64,1), transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  line-height: 1;
+}
+.win-amount.shown { opacity: 1; transform: scale(1); }
+.win-pill {
+  display: inline-block;
+  background: rgba(64,192,96,0.1);
+  border: 1px solid rgba(64,192,96,0.35);
+  color: var(--green);
+  border-radius: 20px;
+  padding: 4px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.win-cap {
+  font-size: 0.84rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 300px;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.sp {
+  position: absolute;
+  font-size: 20px;
+  animation: sp-float 2.5s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+@keyframes sp-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%       { transform: translateY(-18px) rotate(12deg); }
+}
+
+/* ── CTA ─────────────────────────────────────────── */
+
+.cta-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  max-width: 420px;
+  padding: 10px;
+}
+.cta-eye {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--purple);
+}
+.cta-h { font-size: 1.9rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+.cta-sub { font-size: 0.88rem; color: var(--muted); line-height: 1.65; max-width: 380px; }
+.cta-btn {
+  display: inline-block;
+  background: var(--amber);
+  color: #0f0f14;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 13px 32px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  animation: cta-glow 2.5s ease-in-out infinite;
+}
+@keyframes cta-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240,160,48,0); }
+  50%       { box-shadow: 0 0 20px 8px rgba(240,160,48,0.28); }
+}
+.cta-pills { display: flex; gap: 16px; font-size: 0.77rem; color: var(--muted); flex-wrap: wrap; justify-content: center; }
+.cta-gh { font-size: 0.72rem; color: var(--border); }
+/* ── APP TOUR (scene 13) ─────────────────────────── */
+.at-app {
+  display: flex; width: 100%; max-width: 860px;
+  height: 420px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+  font-size: 11px;
+}
+.at-sb {
+  width: 148px; flex-shrink: 0; background: var(--surf);
+  border-right: 1px solid var(--border); padding: 10px;
+  display: flex; flex-direction: column; gap: 7px; overflow: hidden;
+}
+.at-sb-title { font-size: 13px; font-weight: 700; color: var(--amber); }
+.at-conn { font-size: 11px; color: var(--green); font-weight: 600; }
+.at-sb-label {
+  font-size: 9px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.05em; margin-top: 2px;
+}
+.at-sb-val {
+  font-size: 10px; color: var(--text); background: var(--card);
+  border: 1px solid var(--border); border-radius: 3px; padding: 2px 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.at-folder { display: flex; gap: 5px; align-items: center; font-size: 10px; color: var(--text); }
+.at-check { color: var(--amber); font-size: 9px; }
+.at-center {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; min-width: 0;
+}
+.at-fbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-bottom: 1px solid var(--border);
+  background: var(--bg); flex-shrink: 0;
+}
+.at-finput {
+  flex: 1; background: var(--card);
+  border: 1px solid var(--amber); border-radius: 3px;
+  padding: 3px 7px; color: var(--text); font-size: 10px;
+  font-family: inherit; box-shadow: 0 0 0 2px rgba(240,160,48,0.1);
+}
+.at-badge {
+  font-size: 9px; background: rgba(240,160,48,0.12);
+  border: 1px solid rgba(240,160,48,0.35); color: var(--amber);
+  border-radius: 10px; padding: 2px 7px; white-space: nowrap;
+}
+.at-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.at-tab {
+  padding: 5px 9px; font-size: 10px; color: var(--muted);
+  border-bottom: 2px solid transparent; cursor: default;
+  transition: color 0.3s, border-color 0.3s; white-space: nowrap;
+}
+.at-tab.on { color: var(--amber); border-bottom-color: var(--amber); }
+.at-panel { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.at-right {
+  width: 190px; flex-shrink: 0; background: var(--surf);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.at-rtabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.at-rtab {
+  padding: 5px 9px; font-size: 10px; color: var(--muted);
+  border-bottom: 2px solid transparent; cursor: default;
+  transition: color 0.3s, border-color 0.3s;
+}
+.at-rtab.on { color: var(--amber); border-bottom-color: var(--amber); }
+.at-rpanel { flex: 1; min-height: 0; overflow: hidden; padding: 8px 10px; }
+.at-erow {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 10px; border-bottom: 1px solid var(--border); cursor: default;
+}
+.at-erow.sel { background: var(--hover); border-left: 2px solid var(--amber); padding-left: 8px; }
+.at-erow-subj { font-size: 11px; font-weight: 500; color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-erow-meta { font-size: 9px; color: var(--muted); }
+.at-chat {
+  flex: 1; padding: 8px; display: flex;
+  flex-direction: column; gap: 7px; overflow: hidden;
+}
+.at-cmsg { display: flex; flex-direction: column; max-width: 78%; }
+.at-cmsg.sent { align-self: flex-end; align-items: flex-end; }
+.at-cmsg.recv { align-self: flex-start; }
+.at-cbubble {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 9px;
+}
+.at-cmsg.sent .at-cbubble { border-color: rgba(240,160,48,0.35); }
+.at-cmsg.recv .at-cbubble { border-color: rgba(176,106,255,0.35); }
+.at-csubj { font-size: 10px; font-weight: 600; }
+.at-cmsg.sent .at-csubj { color: var(--amber); }
+.at-cmsg.recv .at-csubj { color: var(--purple); }
+.at-cmeta { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.at-att-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 5px; padding: 7px 9px; margin-bottom: 6px;
+}
+.at-att-card.hi { border-color: var(--amber); box-shadow: 0 0 0 1px rgba(240,160,48,0.2); }
+.at-att-name { font-size: 11px; font-weight: 600; color: var(--text); }
+.at-att-meta { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.at-an { padding: 8px; display: flex; flex-direction: column; gap: 7px; overflow: hidden; }
+.at-an-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.at-an-card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
+.at-an-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.at-an-val { font-size: 17px; font-weight: 700; }
+.at-edetail-subj { font-size: 12px; font-weight: 700; color: var(--amber); margin-bottom: 4px; }
+.at-edetail-meta { font-size: 10px; color: var(--muted); line-height: 1.5; }
+.at-edetail-body {
+  font-size: 10px; color: var(--text); line-height: 1.55;
+  margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border);
+}
+.at-pdf {
+  background: #1c1c28; border-radius: 4px; padding: 8px 9px;
+  font-size: 10px; line-height: 1.6; color: var(--text);
+  font-family: 'Courier New', monospace; margin-top: 6px;
+}
+.at-pdf-hi { background: rgba(240,160,48,0.2); border-radius: 2px; padding: 0 2px; }
+.at-note { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 6px 9px; margin-bottom: 6px; }
+.at-note-subj { font-size: 10px; font-weight: 600; color: var(--amber); margin-bottom: 2px; }
+.at-note-text { font-size: 10px; color: var(--text); line-height: 1.45; font-style: italic; }
+@keyframes atFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── COMPOSE WINDOW (scene 11) ──────────────────── */
+.compose-win {
+  background: #ffffff;
+  border: 1px solid #c0c0c0;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 28px 64px rgba(0,0,0,0.7), 0 4px 14px rgba(0,0,0,0.25);
+  color: #1a1a1a;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+.compose-tbar {
+  background: #e4e4e4;
+  border-bottom: 1px solid #c0c0c0;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+.compose-tbar-app { font-size: 11px; color: #999; font-weight: 400; }
+.compose-fields { border-bottom: 1px solid #e4e4e4; padding: 6px 0; }
+.compose-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 16px;
+  font-size: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.compose-field:last-child { border-bottom: none; }
+.compose-flabel { width: 54px; flex-shrink: 0; color: #999; font-weight: 500; }
+.compose-fval   { color: #1a1a1a; }
+.compose-foot {
+  background: #f2f2f2;
+  border-top: 1px solid #e0e0e0;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+.compose-send-btn {
+  background: #0066cc;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── STAGE ─────────────────────────────────── -->
+  <div id="stage">
+    <div id="stage-inner">
+
+      <!-- Character column -->
+      <div id="char-col">
+        <svg id="marcus" viewBox="-12 0 134 215" overflow="visible" xmlns="http://www.w3.org/2000/svg"
+  class="anim-idle" style="width:170px;display:block">
+  <ellipse cx="55" cy="211" rx="34" ry="5" fill="rgba(0,0,0,0.26)"/>
+  <ellipse cx="37" cy="205" rx="14" ry="6.5" fill="#181828"/>
+  <ellipse cx="73" cy="205" rx="14" ry="6.5" fill="#181828"/>
+  <rect x="29" y="155" width="17" height="50" rx="8" fill="#1e1e36"/>
+  <rect x="64" y="155" width="17" height="50" rx="8" fill="#1e1e36"/>
+  <rect x="17" y="92" width="76" height="67" rx="13" fill="#2c2660"/>
+  <rect x="33" y="140" width="44" height="17" rx="6" fill="#24204e"/>
+  <g id="arm-l">
+    <rect x="-2" y="102" width="24" height="11" rx="5.5" fill="#2c2660"/>
+    <circle cx="-3" cy="107" r="7" fill="#f2bba0"/>
+  </g>
+  <g id="arm-r">
+    <rect x="88" y="102" width="24" height="11" rx="5.5" fill="#2c2660"/>
+    <circle cx="113" cy="107" r="7" fill="#f2bba0"/>
+  </g>
+  <rect x="46" y="89" width="18" height="11" rx="4" fill="#f2bba0"/>
+  <circle cx="55" cy="62" r="33" fill="#f2bba0"/>
+  <path d="M18 46 Q55 8 92 46" fill="#7238d8"/>
+  <rect x="17" y="42" width="76" height="10" rx="5" fill="#5c28b8"/>
+  <circle cx="55" cy="16" r="8" fill="#8a50e8"/>
+  <ellipse cx="22" cy="65" rx="4.5" ry="6" fill="#eeaa90"/>
+  <ellipse cx="88" cy="65" rx="4.5" ry="6" fill="#eeaa90"/>
+  <rect x="31" y="61" width="20" height="13" rx="4" fill="none"
+    stroke="#606080" stroke-width="2"/>
+  <rect x="59" y="61" width="20" height="13" rx="4" fill="none"
+    stroke="#606080" stroke-width="2"/>
+  <line x1="51" y1="67" x2="59" y2="67" stroke="#606080" stroke-width="2"/>
+  <line x1="20" y1="67" x2="31" y2="67" stroke="#606080" stroke-width="2"/>
+  <line x1="79" y1="67" x2="90" y2="67" stroke="#606080" stroke-width="2"/>
+  <circle cx="41" cy="67" r="3.8" fill="#18182a"/>
+  <circle cx="69" cy="67" r="3.8" fill="#18182a"/>
+  <circle cx="42.5" cy="65.5" r="1.3" fill="white" opacity="0.85"/>
+  <circle cx="70.5" cy="65.5" r="1.3" fill="white" opacity="0.85"/>
+  <path id="brow-l" d="M31 58 Q41 56 51 58" fill="none"
+    stroke="#6838a8" stroke-width="2.5" stroke-linecap="round"/>
+  <path id="brow-r" d="M59 58 Q69 56 79 58" fill="none"
+    stroke="#6838a8" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="55" cy="76" rx="3" ry="2" fill="#dfa888"/>
+  <path id="mouth" d="M44 84 Q55 90 66 84" fill="none"
+    stroke="#c09080" stroke-width="2.5" stroke-linecap="round"/>
+  <g id="sweat" style="opacity:0;transition:opacity 0.4s">
+    <ellipse cx="91" cy="50" rx="4" ry="6"
+      fill="rgba(80,155,235,0.75)"/>
+    <path d="M91 44 L93.5 50 L88.5 50 Z"
+      fill="rgba(80,155,235,0.75)"/>
+  </g>
+  <g id="stars" style="opacity:0;transition:opacity 0.4s">
+    <text x="5" y="46" font-size="13" fill="#f0a030">★</text>
+    <text x="90" y="38" font-size="10" fill="#f0a030">★</text>
+    <text x="3" y="26" font-size="8" fill="#f0c030">✦</text>
+  </g>
+</svg>
+      </div><!-- /char-col -->
+
+      <!-- Mock column with 12 scenes -->
+      <div id="mock-col">
+
+        <!-- SCENE 1: Engagement letter -->
+        <div class="scene active" id="scene-1">
+          <div class="mp" style="max-width:480px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Email</span></div>
+            <div class="edetail">
+              <div class="edetail-subj">Engagement confirmation – Tax filing 2024</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:2px">From: office@steiner-partner.at</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:10px">January 8, 2024</div>
+              <hr style="border:none;border-top:1px solid var(--border);margin-bottom:12px">
+              <div style="font-size:13px;line-height:1.65;color:var(--text)">
+                Dear Mr. Lindner,<br><br>
+                Thank you for engaging Steiner &amp; Partner for your 2024
+                tax advisory services.<br><br>
+                Work will be billed at €120/hr as documented, with a
+                ceiling of €4,200.00. We will keep you informed as your
+                case progresses.<br><br>
+                – Mag. Eva Steiner
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 2: Invoice arrives -->
+        <div class="scene" id="scene-2">
+          <div class="mp" style="max-width:500px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">List</span></div>
+            <div class="mtabs">
+              <div class="mtab on">List</div>
+              <div class="mtab">Exchange</div>
+              <div class="mtab">Attachments</div>
+              <div class="mtab">Analytics</div>
+              <div class="mtab">Related</div>
+            </div>
+            <div class="mfilter-wrap">
+              <input class="mfilter" readonly value="" placeholder="Filter by sender or recipient…">
+            </div>
+            <div class="erow sel">
+              <div class="erow-dir r">← received</div>
+              <div class="erow-subj">Invoice #ST-2024-089 – Tax consulting services</div>
+              <div class="erow-meta">office@steiner-partner.at &nbsp;·&nbsp; July 3, 2024</div>
+            </div>
+            <div style="padding:12px 14px;border-top:1px solid var(--border)">
+              <div style="background:rgba(224,80,80,0.07);border-left:3px solid var(--red);border-radius:0 6px 6px 0;padding:11px 14px;font-size:13px;line-height:1.7;color:var(--text)">
+                Amount due: €4,200.00<br>
+                Services rendered: January – June 2024
+              </div>
+              <div style="margin-top:9px">
+                <span style="display:inline-block;background:rgba(224,80,80,0.12);border:1px solid rgba(224,80,80,0.4);color:var(--red);border-radius:12px;padding:2px 11px;font-size:11px;font-weight:600">⚠ Disputed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 3: Filter & list -->
+        <div class="scene" id="scene-3">
+          <div class="mp" style="max-width:560px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">List</span></div>
+            <div class="mtabs">
+              <div class="mtab on">List</div>
+              <div class="mtab">Exchange</div>
+              <div class="mtab">Attachments</div>
+              <div class="mtab">Analytics</div>
+              <div class="mtab">Related</div>
+            </div>
+            <div class="mfilter-wrap">
+              <input id="mock-filter-3" class="mfilter active" readonly placeholder="Filter by sender or recipient…">
+              <span id="rc-3" style="font-size:11px;background:rgba(240,160,48,0.15);border:1px solid rgba(240,160,48,0.4);color:var(--amber);border-radius:10px;padding:2px 9px;white-space:nowrap;opacity:0;transition:opacity 0.4s">15 emails</span>
+            </div>
+            <div id="el-3">
+              <div class="erow s3-row"><div class="erow-dir r">←</div><div class="erow-subj">Engagement confirmation</div><div class="erow-meta">office@steiner-partner.at &nbsp;·&nbsp; Jan 8</div></div>
+              <div class="erow s3-row"><div class="erow-dir s">→</div><div class="erow-subj">Documents attached</div><div class="erow-meta">me &nbsp;·&nbsp; Jan 15</div></div>
+              <div class="erow s3-row"><div class="erow-dir s">→</div><div class="erow-subj">Following up – VAT due Feb 15</div><div class="erow-meta">me &nbsp;·&nbsp; Feb 3</div></div>
+              <div class="erow s3-row"><div class="erow-dir r">←</div><div class="erow-subj">Re: Following up</div><div class="erow-meta">office@steiner-partner.at &nbsp;·&nbsp; Feb 28</div></div>
+              <div class="erow s3-row"><div class="erow-dir s">→</div><div class="erow-subj">Q1 summary – please confirm</div><div class="erow-meta">me &nbsp;·&nbsp; Mar 12</div></div>
+              <div class="erow s3-row"><div class="erow-dir s">→</div><div class="erow-subj">Deadline approaching – urgent</div><div class="erow-meta">me &nbsp;·&nbsp; Apr 2</div></div>
+              <div class="erow s3-row"><div class="erow-dir s">→</div><div class="erow-subj">Second follow-up</div><div class="erow-meta">me &nbsp;·&nbsp; Apr 18</div></div>
+              <div class="erow s3-row"><div class="erow-dir r">←</div><div class="erow-subj">Invoice #ST-2024-089</div><div class="erow-meta">office@steiner-partner.at &nbsp;·&nbsp; Jul 3</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 4: Analytics donuts -->
+        <div class="scene" id="scene-4">
+          <div class="mp" style="max-width:560px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Analytics</span></div>
+            <div class="mtabs">
+              <div class="mtab">List</div><div class="mtab">Exchange</div><div class="mtab">Attachments</div>
+              <div class="mtab on">Analytics</div><div class="mtab">Related</div>
+            </div>
+            <div class="cr-row">
+              <!-- Left donut: direction -->
+              <div class="cr-chart-wrap">
+                <div class="cr-title">Emails by direction</div>
+                <div style="position:relative;width:90px;height:90px;flex-shrink:0">
+                  <svg viewBox="0 0 90 90" width="90" height="90">
+                    <circle cx="45" cy="45" r="36" fill="none" stroke="#2a2a3a" stroke-width="12"
+                      stroke-dasharray="226.2 226.2"/>
+                    <circle id="d1-amber" cx="45" cy="45" r="36" fill="none" stroke="#f0a030" stroke-width="12"
+                      stroke-dasharray="0 226.2" transform="rotate(-90 45 45)"
+                      style="transition:stroke-dasharray 0.6s ease"/>
+                    <circle id="d1-purple" cx="45" cy="45" r="36" fill="none" stroke="#b06aff" stroke-width="12"
+                      stroke-dasharray="0 226.2" transform="rotate(173.9 45 45)"
+                      style="transition:stroke-dasharray 0.6s ease 0.25s"/>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+                    <span style="font-size:18px;font-weight:700;color:var(--text);line-height:1">15</span>
+                    <span style="font-size:10px;color:var(--muted)">total</span>
+                  </div>
+                </div>
+                <div class="cr-legend">
+                  <span class="cr-legend-item"><span class="cr-dot" style="background:var(--amber)"></span>Sent 11</span>
+                  <span class="cr-legend-item"><span class="cr-dot" style="background:var(--purple)"></span>Received 4</span>
+                </div>
+              </div>
+              <!-- Right donut: response time -->
+              <div class="cr-chart-wrap">
+                <div class="cr-title">Avg response time</div>
+                <div style="position:relative;width:90px;height:90px;flex-shrink:0">
+                  <svg viewBox="0 0 90 90" width="90" height="90">
+                    <circle cx="45" cy="45" r="36" fill="none" stroke="#2a2a3a" stroke-width="12"
+                      stroke-dasharray="226.2 226.2"/>
+                    <circle cx="45" cy="45" r="36" fill="none" stroke="#2a2a3a" stroke-width="12"
+                      stroke-dasharray="42.6 226.2" transform="rotate(173.9 45 45)" opacity="0.5"/>
+                    <circle id="d2-red" cx="45" cy="45" r="36" fill="none" stroke="#e05050" stroke-width="12"
+                      stroke-dasharray="0 226.2" transform="rotate(-90 45 45)"
+                      style="transition:stroke-dasharray 0.6s ease"/>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+                    <span style="font-size:20px;font-weight:700;color:var(--red);line-height:1">22</span>
+                    <span style="font-size:10px;color:var(--muted)">days</span>
+                  </div>
+                </div>
+                <div class="cr-legend">
+                  <span class="cr-legend-item"><span class="cr-dot" style="background:var(--red)"></span>Their avg: 22d</span>
+                  <span class="cr-legend-item"><span class="cr-dot" style="background:#2a2a3a"></span>SLA: 5d</span>
+                </div>
+              </div>
+            </div>
+            <div class="cr-grid">
+              <div class="cr-card"><div class="cr-label">Total emails</div><div class="cr-val amber">15</div></div>
+              <div class="cr-card"><div class="cr-label">You initiated</div><div class="cr-val purple">73%</div></div>
+              <div class="cr-card"><div class="cr-label">First contact</div><div class="cr-val" style="font-size:14px">Jan 8</div></div>
+              <div class="cr-card"><div class="cr-label">Last contact</div><div class="cr-val" style="font-size:14px">Jul 3</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 5: Timeline -->
+        <div class="scene" id="scene-5">
+          <div class="mp" style="max-width:560px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Analytics</span></div>
+            <div class="mtabs">
+              <div class="mtab">List</div><div class="mtab">Exchange</div><div class="mtab">Attachments</div>
+              <div class="mtab on">Analytics</div><div class="mtab">Related</div>
+            </div>
+            <div class="tl-section">
+              <div class="tl-header">
+                <div class="tl-title">Activity timeline</div>
+                <div class="tl-gran">
+                  <button class="tl-gran-btn on">Auto</button>
+                  <button class="tl-gran-btn">Day</button>
+                  <button class="tl-gran-btn">Week</button>
+                  <button class="tl-gran-btn">Month</button>
+                  <button class="tl-gran-btn">Year</button>
+                </div>
+              </div>
+              <svg id="tl-svg" width="100%" viewBox="0 0 320 90">
+                <text x="20"  y="85" font-size="10" fill="#8888a0" text-anchor="middle">Jan</text>
+                <text x="65"  y="85" font-size="10" fill="#8888a0" text-anchor="middle">Feb</text>
+                <text x="110" y="85" font-size="10" fill="#8888a0" text-anchor="middle">Mar</text>
+                <text x="155" y="85" font-size="10" fill="#8888a0" text-anchor="middle">Apr</text>
+                <text x="200" y="85" font-size="10" fill="#8888a0" text-anchor="middle">May</text>
+                <text x="245" y="85" font-size="10" fill="#8888a0" text-anchor="middle">Jun</text>
+                <text x="290" y="85" font-size="10" fill="#8888a0" text-anchor="middle">Jul</text>
+                <path id="tl-area"
+                  d="M20,40 L65,55 L110,60 L155,72 L200,88 L245,88 L290,68 L290,88 L20,88 Z"
+                  fill="rgba(240,160,48,0.18)" stroke="none" opacity="0" style="transition:opacity 0.5s 1s"/>
+                <path id="tl-line"
+                  d="M20,40 L65,55 L110,60 L155,72 L200,88 L245,88 L290,68"
+                  fill="none" stroke="#f0a030" stroke-width="2" stroke-linecap="round"
+                  stroke-dasharray="320" stroke-dashoffset="320"/>
+                <rect x="155" y="10" width="90" height="70" fill="rgba(42,42,58,0.3)" rx="3"/>
+                <text x="200" y="48" text-anchor="middle" fill="#8888a0" font-size="9">3 months</text>
+                <text x="200" y="60" text-anchor="middle" fill="#8888a0" font-size="9">no reply</text>
+                <circle cx="20"  cy="40" r="4" fill="#f0a030"/>
+                <circle cx="65"  cy="55" r="4" fill="#f0a030"/>
+                <circle cx="110" cy="60" r="4" fill="#f0a030"/>
+                <circle cx="155" cy="72" r="4" fill="#f0a030"/>
+                <circle cx="200" cy="88" r="4" fill="#f0a030"/>
+                <circle cx="245" cy="88" r="4" fill="#f0a030"/>
+                <circle cx="290" cy="68" r="4" fill="#f0a030"/>
+                <circle cx="20"  cy="40" r="3" fill="#b06aff"/>
+                <circle cx="65"  cy="55" r="3" fill="#b06aff"/>
+                <circle cx="290" cy="68" r="3" fill="#b06aff"/>
+              </svg>
+            </div>
+            <div class="cr-grid" style="padding-top:0">
+              <div class="cr-card"><div class="cr-label">Longest gap</div><div class="cr-val red">23d</div></div>
+              <div class="cr-card"><div class="cr-label">Your share</div><div class="cr-val amber">73%</div><div class="cr-sub">you initiated</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 6: Exchange -->
+        <div class="scene" id="scene-6">
+          <div class="mp" style="max-width:580px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Exchange</span></div>
+            <div class="mtabs">
+              <div class="mtab">List</div><div class="mtab on">Exchange</div>
+              <div class="mtab">Attachments</div><div class="mtab">Analytics</div><div class="mtab">Related</div>
+            </div>
+            <div style="padding:5px 10px;border-bottom:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--muted)">
+              Sort: Newest first &nbsp;|&nbsp; <span style="color:var(--amber)">Oldest first</span>
+            </div>
+            <div id="tc-6" style="padding:12px;display:flex;flex-direction:column;gap:10px;max-height:290px;overflow:hidden">
+              <div class="chat-div" style="opacity:0">January 2024</div>
+              <div class="chat-msg received" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Engagement confirmation – Tax filing 2024</div><div class="chat-meta">Jan 8 · office@steiner-partner.at</div></div>
+              </div>
+              <div class="chat-msg sent" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Documents attached as requested</div><div class="chat-meta">Jan 15 · me</div></div>
+              </div>
+              <div class="chat-div" style="opacity:0">February 2024</div>
+              <div class="chat-msg sent" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Following up – VAT filing due Feb 15</div><div class="chat-meta">Feb 3 · me</div></div>
+              </div>
+              <div class="chat-msg received" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Re: Following up – received, processing</div><div class="chat-meta">Feb 28 · office@steiner-partner.at</div></div>
+              </div>
+              <div class="chat-div" style="opacity:0">March – April 2024</div>
+              <div class="chat-msg sent" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Q1 summary – please confirm</div><div class="chat-meta">Mar 12 · me</div></div>
+              </div>
+              <div class="chat-msg sent" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Deadline approaching – urgent</div><div class="chat-meta">Apr 2 · me</div></div>
+              </div>
+              <div class="chat-msg sent" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Second follow-up – no reply in 16 days</div><div class="chat-meta">Apr 18 · me</div></div>
+              </div>
+              <div class="chat-div" style="opacity:0">July 2024</div>
+              <div class="chat-msg received" style="opacity:0">
+                <div class="chat-bubble"><div class="chat-subj">Invoice #ST-2024-089 – €4,200.00</div><div class="chat-meta">Jul 3 · office@steiner-partner.at</div></div>
+              </div>
+            </div>
+            <div class="exchange-foot"><button class="print-btn">🖨 Print exchange</button></div>
+          </div>
+        </div>
+
+        <!-- SCENE 7: Notes -->
+        <div class="scene" id="scene-7">
+          <div class="mp" style="max-width:580px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Exchange</span></div>
+            <div class="mtabs">
+              <div class="mtab">List</div><div class="mtab on">Exchange</div>
+              <div class="mtab">Attachments</div><div class="mtab">Analytics</div><div class="mtab">Related</div>
+            </div>
+            <div style="padding:12px;display:flex;flex-direction:column;gap:10px;max-height:310px;overflow:hidden">
+              <div class="chat-div" style="opacity:1;text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">January – February 2024</div>
+              <div class="chat-msg received" style="opacity:1">
+                <div class="chat-bubble">
+                  <div class="chat-subj">Engagement confirmation – Tax filing 2024</div>
+                  <div class="chat-meta">Jan 8 · office@steiner-partner.at</div>
+                </div>
+              </div>
+              <div class="chat-msg received" style="opacity:1">
+                <div class="chat-bubble">
+                  <div class="chat-subj">Re: Following up – received, processing</div>
+                  <div class="chat-meta">Feb 28 · office@steiner-partner.at</div>
+                  <div id="s7-note1" class="chat-note" style="font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid var(--border);padding-top:8px;margin-top:8px;opacity:0;animation:fade-up 0.4s ease 0.3s forwards">
+                    📝 Took 25 days to reply. Just asked for the same VAT docs I sent Jan 15.
+                  </div>
+                </div>
+              </div>
+              <div class="chat-div" style="opacity:1;text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">April 2024</div>
+              <div class="chat-msg sent" style="opacity:1">
+                <div class="chat-bubble">
+                  <div class="chat-subj">Deadline approaching – urgent</div>
+                  <div class="chat-meta">Apr 2 · me</div>
+                  <div id="s7-note2" class="chat-note" style="font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid var(--border);padding-top:8px;margin-top:8px;opacity:0;animation:fade-up 0.4s ease 0.6s forwards">
+                    📝 Filed VAT manually – couldn't wait any longer.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="exchange-foot"><button class="print-btn">🖨 Print exchange</button></div>
+          </div>
+        </div>
+
+        <!-- SCENE 8: Attachments -->
+        <div class="scene" id="scene-8">
+          <div class="mp" style="max-width:520px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Attachments</span></div>
+            <div class="mtabs">
+              <div class="mtab">List</div><div class="mtab">Exchange</div>
+              <div class="mtab on">Attachments</div><div class="mtab">Analytics</div><div class="mtab">Related</div>
+            </div>
+            <div class="att-toolbar">
+              <input class="att-filter" readonly placeholder="Filter by filename, sender…">
+            </div>
+            <div class="att-body">
+              <div class="att-group-label" style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:8px">PDFs</div>
+              <div class="att-card highlight" id="att-highlight" style="border-color:var(--amber);box-shadow:0 0 0 2px rgba(240,160,48,0.18);opacity:0;transform:scale(0.95);transition:opacity 0.4s ease 0.4s,transform 0.4s ease 0.4s">
+                <div class="att-name">steiner-engagement-2024.pdf</div>
+                <div class="att-meta">office@steiner-partner.at · January 8, 2024 · 142 KB</div>
+                <div class="att-actions">
+                  <button class="att-btn">View</button>
+                  <button class="att-btn">Open email</button>
+                </div>
+              </div>
+              <div class="att-card" style="opacity:0;transform:scale(0.95);transition:opacity 0.4s ease 0.6s,transform 0.4s ease 0.6s" id="s8-card2">
+                <div class="att-name">Q4-2023-tax-summary.pdf</div>
+                <div class="att-meta">office@steiner-partner.at · December 2023 · 89 KB</div>
+              </div>
+              <div class="att-group-label" style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:5px;margin:10px 0 8px">Documents</div>
+              <div class="att-card" style="opacity:0;transform:scale(0.95);transition:opacity 0.4s ease 0.8s,transform 0.4s ease 0.8s" id="s8-card3">
+                <div class="att-name">VAT-receipts-Q1.docx</div>
+                <div class="att-meta">marcus.lindner@gmail.com · January 2024 · 34 KB</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 9: Preview -->
+        <div class="scene" id="scene-9">
+          <div class="mp" style="max-width:480px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Preview</span></div>
+            <div style="padding:12px 14px">
+              <div style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:3px">steiner-engagement-2024.pdf</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:10px">office@steiner-partner.at · Jan 8, 2024 · 142 KB</div>
+              <div class="pdf-preview" style="background:#1c1c28;border-radius:5px;padding:13px 14px;font-size:11.5px;line-height:1.65;color:var(--text);font-family:'Courier New',Courier,monospace">
+                <div id="pdf-p1" style="transition:opacity 0.4s">
+                  <strong>STEINER &amp; PARTNER STEUERBERATUNG GmbH</strong><br>
+                  <span style="color:var(--muted)">Engagement Letter – Marcus Lindner / Sole Trader 2024</span>
+                </div>
+                <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+                <div id="pdf-p2" style="transition:opacity 0.4s;margin-bottom:8px">
+                  Scope: Annual income tax filing, VAT returns Q1–Q4.
+                </div>
+                <div id="pdf-p3" style="opacity:0;transition:opacity 0.5s 0.5s;margin-bottom:8px">
+                  Fee structure:<br>
+                  Services are billed at <span style="background:rgba(240,160,48,0.2);padding:1px 3px">€120.00 per hour, per documented engagement</span>. Total fees not to exceed €4,200.00 without prior approval.
+                </div>
+                <div id="pdf-p4" style="opacity:0;transition:opacity 0.5s 1s">
+                  Response commitment: Steiner &amp; Partner will respond to all client communications within <span style="background:rgba(240,160,48,0.2);padding:1px 3px">5 (five) business days</span>.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 10: Print -->
+        <div class="scene" id="scene-10">
+          <div class="mp" style="max-width:560px">
+            <div class="tbar"><span class="tbar-l">Tracemail</span><span class="tbar-r">Exchange</span></div>
+            <div class="mtabs">
+              <div class="mtab">List</div><div class="mtab on">Exchange</div>
+              <div class="mtab">Attachments</div><div class="mtab">Analytics</div><div class="mtab">Related</div>
+            </div>
+            <div style="padding:12px;display:flex;flex-direction:column;gap:9px">
+              <div style="text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">January 2024</div>
+              <div class="chat-msg sent" style="opacity:1">
+                <div class="chat-bubble"><div class="chat-subj">Documents attached as requested</div><div class="chat-meta">Jan 15 · me</div></div>
+              </div>
+              <div class="chat-msg received" style="opacity:1">
+                <div class="chat-bubble"><div class="chat-subj">Re: Following up – received, processing</div><div class="chat-meta">Feb 28 · office@steiner-partner.at</div></div>
+              </div>
+              <div class="chat-msg sent" style="opacity:1">
+                <div class="chat-bubble"><div class="chat-subj">Deadline approaching – urgent</div><div class="chat-meta">Apr 2 · me</div></div>
+              </div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding:8px 12px;display:flex;justify-content:flex-end">
+              <button id="print-btn" class="print-btn">🖨 Print exchange</button>
+            </div>
+            <div id="s10-print" style="opacity:0;transition:opacity 0.5s;max-height:0;overflow:hidden;transition:opacity 0.5s,max-height 0.5s">
+              <div style="background:#f5f4ef;color:#1a1a1a;font-family:Georgia,'Times New Roman',serif;font-size:11px;line-height:1.7;padding:16px 18px">
+                <div style="font-size:13px;font-weight:700;margin-bottom:2px">Email Exchange – steiner-partner.at | January–July 2024</div>
+                <div style="font-size:10px;color:#555;margin-bottom:8px">15 emails · Exported July 4, 2024 · marcus.lindner@gmail.com</div>
+                <hr style="border:none;border-top:1px solid #ccc;margin-bottom:10px">
+                <div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:0.05em">SENT · Jan 15 · me</div><div>Documents attached as requested</div></div>
+                <div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:0.05em">RECEIVED · Feb 28 · office@steiner-partner.at</div><div>Re: Following up – received, processing</div></div>
+                <div style="font-size:9px;color:#888;margin-top:10px;border-top:1px solid #ddd;padding-top:6px">Printed via Tracemail · tracemail.local</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 11: Objection email -->
+        <div class="scene" id="scene-11">
+          <div class="compose-win">
+            <div class="compose-tbar">
+              <span>✉ New Message</span>
+              <span class="compose-tbar-app">Mail</span>
+            </div>
+            <div class="compose-fields">
+              <div class="compose-field">
+                <span class="compose-flabel">To:</span>
+                <span class="compose-fval">office@steiner-partner.at</span>
+              </div>
+              <div class="compose-field">
+                <span class="compose-flabel">Subject:</span>
+                <span class="compose-fval">Formal objection – Invoice #ST-2024-089</span>
+              </div>
+              <div class="compose-field">
+                <span class="compose-flabel">Date:</span>
+                <span class="compose-fval" style="color:#999">July 4, 2024</span>
+              </div>
+            </div>
+            <div id="s11-scroll" style="overflow:hidden;max-height:280px;position:relative">
+              <div id="s11-email" style="padding:14px 16px">
+                <div style="font-size:12.5px;line-height:1.75;color:#1a1a1a">
+                  <p style="margin-bottom:12px">Dear Mag. Steiner,</p>
+                  <p style="margin-bottom:12px">
+                    I am writing to formally dispute Invoice #ST-2024-089 (€4,200.00)
+                    issued July 3, 2024 for tax consulting services rendered
+                    January–June 2024.
+                  </p>
+                  <p style="margin-bottom:12px">
+                    Having reviewed our full correspondence, I find the invoice
+                    inconsistent with the scope of work actually performed:
+                  </p>
+                  <div style="background:rgba(240,160,48,0.1);border-left:3px solid
+                    #f0a030;border-radius:0 6px 6px 0;padding:10px 14px;
+                    margin-bottom:12px;font-size:12px;line-height:1.7;color:#1a1a1a">
+                    <div style="margin-bottom:5px">
+                      • <strong style="color:var(--amber)">15 emails exchanged</strong>
+                      over 6 months — 11 sent by me, 4 by your office
+                    </div>
+                    <div style="margin-bottom:5px">
+                      • Your average response time:
+                      <strong style="color:var(--amber)">22 days</strong>
+                      (engagement letter specifies 5 business days)
+                    </div>
+                    <div style="margin-bottom:5px">
+                      • No contact from your office April–June 2024
+                      <strong style="color:var(--amber)">(92 days of silence)</strong>
+                      during which I filed VAT returns independently
+                    </div>
+                    <div>
+                      • Engagement letter (attached) specifies billing at
+                      <strong style="color:var(--amber)">€120/hr per documented
+                      engagement</strong> — no hours have been documented
+                    </div>
+                  </div>
+                  <p style="margin-bottom:12px">
+                    Based on the volume and quality of correspondence received,
+                    I estimate actual work performed at approximately 3 hours.
+                    I am prepared to settle at
+                    <strong style="color:var(--green)">€360.00</strong>
+                    (3 hrs × €120), consistent with the terms of our agreement.
+                  </p>
+                  <p style="margin-bottom:12px">
+                    I have attached a full export of our email exchange,
+                    including timestamps, for your reference.
+                  </p>
+                  <p style="margin-bottom:4px">Regards,</p>
+                  <p>Marcus Lindner</p>
+                </div>
+              </div>
+            </div>
+            <div class="compose-foot">
+              <button class="compose-send-btn">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 12: Win -->
+        <div class="scene" id="scene-12">
+          <div class="win-center">
+            <span class="sp" style="top:10px;left:30px;animation-delay:0s">★</span>
+            <span class="sp" style="top:20px;right:40px;font-size:14px;animation-delay:0.3s">✦</span>
+            <span class="sp" style="bottom:40px;left:50px;font-size:16px;animation-delay:0.6s">★</span>
+            <span class="sp" style="top:60px;right:20px;font-size:24px;animation-delay:0.9s">✦</span>
+            <span class="sp" style="bottom:60px;right:60px;font-size:12px;animation-delay:0.15s">✦</span>
+            <div class="win-lbl-sm">final invoice</div>
+            <div class="win-amount" id="win-amount">€0</div>
+            <div class="win-pill" id="win-pill">Rebilled at documented hours · July 7, 2024</div>
+            <div class="win-cap" id="win-cap">Down from €4,200. Three hours of actual work at €120/hr.</div>
+          </div>
+        </div>
+
+        <!-- SCENE 13: App Tour -->
+        <div class="scene" id="scene-13">
+          <div class="at-app">
+            <div class="at-sb">
+              <div class="at-sb-title">Tracemail</div>
+              <div class="at-conn">● Connected</div>
+              <div class="at-sb-label">Account</div>
+              <div class="at-sb-val">marcus.lindner@gmail.com</div>
+              <div class="at-sb-label">Folders</div>
+              <div class="at-folder"><span class="at-check">✓</span> INBOX</div>
+              <div class="at-folder"><span class="at-check">✓</span> Sent</div>
+              <div class="at-sb-label" style="margin-top:4px">Fetched</div>
+              <div style="font-size:10px;color:var(--text)">Jan – Jul 2024</div>
+            </div>
+            <div class="at-center">
+              <div class="at-fbar">
+                <input class="at-finput" readonly value="steiner-partner.at">
+                <span class="at-badge">15 emails</span>
+              </div>
+              <div class="at-tabs" id="at-tabs">
+                <div class="at-tab on" id="at-tab-list">List</div>
+                <div class="at-tab" id="at-tab-exchange">Exchange</div>
+                <div class="at-tab" id="at-tab-attach">Attachments</div>
+                <div class="at-tab" id="at-tab-analytics">Analytics</div>
+                <div class="at-tab" id="at-tab-related">Related</div>
+              </div>
+              <div class="at-panel" id="at-cp-list">
+                <div class="at-erow sel"><div class="at-erow-subj">Engagement confirmation – Tax filing 2024</div><div class="at-erow-meta">office@steiner-partner.at · Jan 8</div></div>
+                <div class="at-erow"><div class="at-erow-subj">Documents attached as requested</div><div class="at-erow-meta">me · Jan 15</div></div>
+                <div class="at-erow"><div class="at-erow-subj">Following up – VAT filing due Feb 15</div><div class="at-erow-meta">me · Feb 3</div></div>
+                <div class="at-erow"><div class="at-erow-subj">Re: Following up – received, processing</div><div class="at-erow-meta">office@steiner-partner.at · Feb 28</div></div>
+                <div class="at-erow"><div class="at-erow-subj">Deadline approaching – urgent</div><div class="at-erow-meta">me · Apr 2</div></div>
+                <div class="at-erow"><div class="at-erow-subj">Invoice #ST-2024-089 – Tax consulting</div><div class="at-erow-meta">office@steiner-partner.at · Jul 3</div></div>
+              </div>
+              <div class="at-panel" id="at-cp-exchange" style="display:none">
+                <div class="at-chat" style="overflow-y:auto">
+                  <div style="text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">January 8, 2024</div>
+                  <div class="at-cmsg recv" style="max-width:86%">
+                    <div class="at-cbubble" style="width:100%">
+                      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px">
+                        <div class="at-csubj">Engagement confirmation – Tax filing 2024</div>
+                        <div style="font-size:10px;color:var(--muted);margin-left:6px;flex-shrink:0">★</div>
+                      </div>
+                      <div class="at-cmeta" style="margin-bottom:5px">Jan 8 · office@steiner-partner.at</div>
+                      <div style="font-size:10px;color:var(--text);line-height:1.5;border-top:1px solid var(--border);padding-top:5px">Dear Mr. Lindner, thank you for engaging Steiner &amp; Partner. Work billed at €120/hr, ceiling €4,200. We will keep you informed.</div>
+                      <div style="font-size:9px;color:var(--muted);margin-top:4px">▴ Collapse</div>
+                    </div>
+                  </div>
+                  <div style="text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:4px 0">April 2, 2024</div>
+                  <div class="at-cmsg sent" style="max-width:86%">
+                    <div class="at-cbubble" style="width:100%">
+                      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px">
+                        <div class="at-csubj">Deadline approaching – urgent</div>
+                        <div style="font-size:10px;color:var(--amber);margin-left:6px;flex-shrink:0">★</div>
+                      </div>
+                      <div class="at-cmeta" style="margin-bottom:5px">Apr 2 · me</div>
+                      <div style="font-size:10px;color:var(--text);line-height:1.5;border-top:1px solid var(--border);padding-top:5px">This is my third follow-up. The Q1 filing deadline is April 10. I have not received any response to my last two messages. Please advise urgently.</div>
+                      <div style="font-size:9px;color:var(--purple);margin-top:5px;font-style:italic;border-top:1px solid var(--border);padding-top:4px">📝 Filed VAT manually – no response after 16 days.</div>
+                      <div style="font-size:9px;color:var(--muted);margin-top:3px">▴ Collapse</div>
+                    </div>
+                  </div>
+                  <div style="text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:4px 0">July 3, 2024</div>
+                  <div class="at-cmsg recv" style="max-width:86%">
+                    <div class="at-cbubble">
+                      <div class="at-csubj">Invoice #ST-2024-089 – €4,200.00</div>
+                      <div class="at-cmeta">Jul 3 · office@steiner-partner.at</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="at-panel" id="at-cp-attach" style="display:none">
+                <div style="padding:8px 10px">
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px">PDFs</div>
+                  <div class="at-att-card hi"><div class="at-att-name">steiner-engagement-2024.pdf</div><div class="at-att-meta">office@steiner-partner.at · Jan 8 · 142 KB</div></div>
+                  <div class="at-att-card"><div class="at-att-name">Q4-2023-tax-summary.pdf</div><div class="at-att-meta">office@steiner-partner.at · Dec 2023</div></div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:4px;margin:8px 0 6px">Documents</div>
+                  <div class="at-att-card"><div class="at-att-name">VAT-receipts-Q1.docx</div><div class="at-att-meta">me · January 2024 · 34 KB</div></div>
+                </div>
+              </div>
+              <div class="at-panel" id="at-cp-analytics" style="display:none">
+                <div style="overflow-y:auto;flex:1;padding:6px 8px;display:flex;flex-direction:column;gap:6px">
+                  <!-- Donut row -->
+                  <div style="display:flex;gap:6px">
+                    <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:4px">
+                      <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted)">Total Emails</div>
+                      <svg viewBox="0 0 80 80" width="56" height="56">
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#2a2a3a" stroke-width="10"/>
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#f0a030" stroke-width="10" stroke-dasharray="128.4 175.9" transform="rotate(-90 40 40)"/>
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#b06aff" stroke-width="10" stroke-dasharray="47.5 175.9" transform="rotate(163.4 40 40)"/>
+                        <text x="40" y="44" text-anchor="middle" fill="#e8e8f0" font-size="14" font-weight="700">15</text>
+                      </svg>
+                      <div style="font-size:8.5px;color:var(--muted);display:flex;gap:6px"><span><span style="color:#f0a030">●</span> Sent 11</span><span><span style="color:#b06aff">●</span> Recv 4</span></div>
+                    </div>
+                    <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:4px">
+                      <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted)">Response Time</div>
+                      <svg viewBox="0 0 80 80" width="56" height="56">
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#2a2a3a" stroke-width="10"/>
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#40c060" stroke-width="10" stroke-dasharray="22 175.9" transform="rotate(-90 40 40)"/>
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#f0a030" stroke-width="10" stroke-dasharray="22 175.9" transform="rotate(-45 40 40)"/>
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#b06aff" stroke-width="10" stroke-dasharray="22 175.9" transform="rotate(0 40 40)"/>
+                        <circle cx="40" cy="40" r="28" fill="none" stroke="#e05050" stroke-width="10" stroke-dasharray="88 175.9" transform="rotate(45 40 40)"/>
+                        <text x="40" y="40" text-anchor="middle" fill="#e05050" font-size="11" font-weight="700">22d</text>
+                        <text x="40" y="51" text-anchor="middle" fill="#8888a0" font-size="7">avg</text>
+                      </svg>
+                      <div style="font-size:8px;color:var(--muted);display:flex;flex-direction:column;gap:1px;align-self:flex-start;padding-left:2px">
+                        <span><span style="color:#40c060">●</span> Same day 1</span>
+                        <span><span style="color:#f0a030">●</span> 1–2d 1</span>
+                        <span><span style="color:#b06aff">●</span> 2–7d 1</span>
+                        <span><span style="color:#e05050">●</span> No reply 8</span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Stats grid -->
+                  <div class="at-an-grid" style="grid-template-columns:1fr 1fr;gap:5px">
+                    <div class="at-an-card"><div class="at-an-label">Response Rate</div><div class="at-an-val" style="font-size:14px">67%</div><div style="font-size:8px;color:var(--muted)">8 sent without reply</div></div>
+                    <div class="at-an-card"><div class="at-an-label">Avg Response</div><div class="at-an-val" style="color:var(--red);font-size:14px">22d</div><div style="font-size:8px;color:var(--muted)">SLA: 5 days</div></div>
+                    <div class="at-an-card"><div class="at-an-label">Longest Gap</div><div class="at-an-val" style="font-size:14px">92d</div><div style="font-size:8px;color:var(--muted)">Apr–Jun 2024</div></div>
+                    <div class="at-an-card"><div class="at-an-label">Distinct Threads</div><div class="at-an-val" style="font-size:14px">6</div><div style="font-size:8px;color:var(--muted)">by subject line</div></div>
+                  </div>
+                  <!-- Who opens -->
+                  <div style="background:var(--card);border:1px solid var(--border);border-radius:5px;padding:7px 9px">
+                    <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:5px">Who Opens Conversations</div>
+                    <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:4px">
+                      <div style="width:73%;height:100%;background:var(--amber);border-radius:3px 0 0 3px"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:9px">
+                      <span style="color:var(--amber)">You: 73%</span>
+                      <span style="color:var(--purple)">Them: 27%</span>
+                    </div>
+                  </div>
+                  <!-- Timeline -->
+                  <div style="background:var(--card);border:1px solid var(--border);border-radius:5px;padding:7px 9px">
+                    <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:5px">Activity Timeline</div>
+                    <svg viewBox="0 0 220 44" width="100%" height="40">
+                      <path d="M10,20 L42,28 L74,30 L106,38 L138,43 L170,43 L202,34" fill="none" stroke="#f0a030" stroke-width="1.5" stroke-linecap="round"/>
+                      <path d="M10,20 L42,28 L74,30 L106,38 L138,43 L170,43 L202,34 L202,44 L10,44 Z" fill="rgba(240,160,48,0.12)"/>
+                      <text x="10" y="43" fill="#8888a0" font-size="7">Jan</text>
+                      <text x="74" y="43" fill="#8888a0" font-size="7">Mar</text>
+                      <text x="138" y="43" fill="#8888a0" font-size="7">May</text>
+                      <text x="196" y="43" fill="#8888a0" font-size="7">Jul</text>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="at-right">
+              <div class="at-rtabs" id="at-rtabs">
+                <div class="at-rtab on" id="at-rtab-email">Email</div>
+                <div class="at-rtab" id="at-rtab-preview">Preview</div>
+                <div class="at-rtab" id="at-rtab-notes">Notes</div>
+              </div>
+              <div class="at-rpanel" id="at-rp-email">
+                <div class="at-edetail-subj">Engagement confirmation – Tax filing 2024</div>
+                <div class="at-edetail-meta">From: office@steiner-partner.at<br>January 8, 2024</div>
+                <div class="at-edetail-body">Dear Mr. Lindner,<br><br>Thank you for engaging Steiner &amp; Partner. Work will be billed at €120/hr with a ceiling of €4,200.00.<br><br>– Mag. Eva Steiner</div>
+              </div>
+              <div class="at-rpanel" id="at-rp-preview" style="display:none">
+                <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:3px">steiner-engagement-2024.pdf</div>
+                <div style="font-size:10px;color:var(--muted);margin-bottom:6px">142 KB · Jan 8, 2024</div>
+                <div class="at-pdf"><strong>STEINER &amp; PARTNER</strong><br>Engagement Letter 2024<br><br>Services billed at <span class="at-pdf-hi">€120.00/hour, per documented engagement</span>. Ceiling: €4,200.<br><br>Response time: <span class="at-pdf-hi">5 business days</span>.</div>
+              </div>
+              <div class="at-rpanel" id="at-rp-notes" style="display:none;padding:8px 10px">
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:7px">STEINER-PARTNER.AT</div>
+                <div class="at-note">
+                  <div class="at-note-subj">Re: Following up – received, processing</div>
+                  <div style="font-size:9px;color:var(--muted);margin-bottom:3px">office@steiner-partner.at · Feb 28</div>
+                  <div class="at-note-text">Took 25 days to reply. Just asked to resend docs I'd already sent twice.</div>
+                  <div style="font-size:9px;color:var(--muted);margin-top:4px;display:flex;gap:8px">
+                    <span style="color:var(--amber);cursor:default">Edit</span>
+                    <span style="cursor:default">Delete</span>
+                  </div>
+                </div>
+                <div class="at-note">
+                  <div class="at-note-subj">Deadline approaching – urgent</div>
+                  <div style="font-size:9px;color:var(--muted);margin-bottom:3px">me · Apr 2</div>
+                  <div class="at-note-text">Filed VAT manually – no response after 16 days.</div>
+                  <div style="font-size:9px;color:var(--muted);margin-top:4px;display:flex;gap:8px">
+                    <span style="color:var(--amber);cursor:default">Edit</span>
+                    <span style="cursor:default">Delete</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE 14: CTA -->
+        <div class="scene" id="scene-14">
+          <div class="cta-center">
+            <div class="cta-eye">Local. Private. Evidence-ready.</div>
+            <div class="cta-h">Ready to investigate?</div>
+            <div class="cta-sub">Tracemail is a free, local-only email investigation tool for Linux. No cloud. No subscriptions. No AI reading your emails.</div>
+            <a class="cta-btn" href="https://github.com/teokitten/tracemail/releases" target="_blank">⬇ Download Tracemail</a>
+            <div class="cta-pills">
+              <span>🐧 Linux binary</span>
+              <span>⚡ Flask + Python</span>
+              <span>🔒 100% local</span>
+            </div>
+            <div class="cta-gh">github.com/teokitten/tracemail</div>
+          </div>
+        </div>
+
+      </div><!-- /mock-col -->
+    </div><!-- /stage-inner -->
+  </div><!-- /stage -->
+
+  <!-- ── NARRATION ────────────────────────────────── -->
+  <div id="narration">
+    <div id="scene-dots"></div>
+    <div id="ntext"><span id="cursor"></span></div>
+  </div>
+
+  <!-- ── CONTROLS ──────────────────────────────────── -->
+  <div id="controls">
+    <button class="cbtn" id="btn-prev">← Prev</button>
+    <button class="cbtn pp" id="btn-pp">⏸ Pause</button>
+    <button class="cbtn" id="btn-next">Next →</button>
+    <div id="progress-track"><div id="progress-fill"></div></div>
+    <span id="scene-lbl">1 / 14</span>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+'use strict';
+
+/* ── SCENES ─────────────────────────────────────── */
+const SCENES = [
+  { narration: "In January I hired Steiner & Partner – a tax consultancy in Vienna – to handle my annual filing. Standard engagement. Flat ceiling of €4,200. They said they’d keep me informed throughout.", state: "calm",       duration: 14000 },
+  { narration: "July. Their invoice arrived. Full €4,200. I had barely heard from them all year. Something felt wrong.",                                                                                                    state: "worried",    duration: 7500  },
+  { narration: "Filtered by their domain. Fifteen emails. Six months. I started reading.",                                                                                                               state: "focused",    duration: 8000  },
+  { narration: "Analytics told the story in seconds. Eleven of those fifteen emails were mine. They sent four. Average response time: twenty-two days. Their own engagement letter specifies five business days.",               state: "focused",    duration: 14000 },
+  { narration: "The activity chart confirmed it. January and February, some back and forth. Then April, May, June – flatline. Three months I spent manually filing my own VAT because I couldn’t reach them.",       state: "focused",    duration: 14000 },
+  { narration: "The Exchange tab made the imbalance impossible to unsee. My messages stacking up on the right. Their four replies scattered on the left – sparse and late.",                                              state: "curious",    duration: 10000 },
+  { narration: "I annotated the most relevant ones directly on the cards. One reply asked me to resend documents I’d already sent twice. A three-week gap before answering a deadline question.",                                  state: "focused",    duration: 13000 },
+  { narration: "Then the Attachments tab surfaced the engagement letter from January – automatically found across all my folders.",                                                                                        state: "excited",    duration: 8500  },
+  { narration: "I opened it right there. Work billed at €120 per hour, per documented engagement. Four emails. Three hours of work at most. €360. Not €4,200.",                                                state: "focused",    duration: 10000 },
+  { narration: "I printed the Exchange view. Every email, every timestamp, every unanswered message. Sent it with a formal objection.",                                                                                        state: "determined", duration: 9000  },
+  { narration: "The objection email wrote itself. The data was already there.", state: "determined", duration: 14000 },
+  { narration: "Steiner & Partner agreed to rebill at documented hours within three days.",                                                                                                                               state: "triumphant", duration: 7000  },
+  { narration: "Connect your inbox. Filter by what matters. Threads, attachments, analytics, notes – everything in one place.", state: "calm", duration: 18000 },
+  { narration: "Your emails don’t lie. Tracemail helps you prove it.",                                                                                                                                                   state: "calm",       duration: 12000 },
+];
+
+/* ── EXPRESSIONS ─────────────────────────────────── */
+const EXPRS = {
+  calm:       { bL: "M31 58 Q41 57 51 58", bR: "M59 58 Q69 57 79 58", m: "M43 84 Q55 89 67 84" },
+  worried:    { bL: "M31 57 Q41 54 51 59", bR: "M59 59 Q69 54 79 57", m: "M43 87 Q55 83 67 87" },
+  focused:    { bL: "M31 58 Q41 57 51 58", bR: "M59 58 Q69 57 79 58", m: "M43 84 Q55 87 67 84" },
+  curious:    { bL: "M31 58 Q41 56 51 58", bR: "M59 56 Q69 53 79 58", m: "M43 84 Q55 88 67 84" },
+  excited:    { bL: "M31 55 Q41 52 51 55", bR: "M59 55 Q69 52 79 55", m: "M40 83 Q55 95 70 83" },
+  triumphant: { bL: "M31 53 Q41 50 51 53", bR: "M59 53 Q69 50 79 53", m: "M38 82 Q55 97 72 82" },
+  determined: { bL: "M31 58 Q41 57 51 58", bR: "M59 58 Q69 57 79 58", m: "M43 84 Q55 87 67 84" },
+};
+
+/* ── STATE ──────────────────────────────────────── */
+let cur = 0, playing = true, elapsed = 0;
+const TICK = 60;
+let ticker = null, typeTimer = null, filterIv = null, countIv = null;
+let tourTimers = [];
+let typeText = '', typePos = 0;
+
+/* ── CHARACTER ──────────────────────────────────── */
+function setExpr(state) {
+  const e = EXPRS[state] || EXPRS.calm;
+  document.getElementById('brow-l').setAttribute('d', e.bL);
+  document.getElementById('brow-r').setAttribute('d', e.bR);
+  document.getElementById('mouth').setAttribute('d', e.m);
+  document.getElementById('sweat').style.opacity = state === 'worried' ? '1' : '0';
+  document.getElementById('stars').style.opacity = (state === 'excited' || state === 'triumphant') ? '1' : '0';
+  updateArms(state);
+}
+
+function updateArms(state) {
+  const armL = document.getElementById('arm-l');
+  const armR = document.getElementById('arm-r');
+  armL.setAttribute('transform', '');
+  armR.setAttribute('transform', '');
+  if (state === 'triumphant') {
+    armL.setAttribute('transform', 'rotate(-130 18 107)');
+    armR.setAttribute('transform', 'rotate(130 92 107)');
+  } else if (state === 'excited') {
+    armR.setAttribute('transform', 'rotate(-75 92 107)');
+  } else if (state === 'focused' || state === 'determined') {
+    armL.setAttribute('transform', 'rotate(22 18 107)');
+    armR.setAttribute('transform', 'rotate(-22 92 107)');
+  }
+}
+
+function setAnim(state) {
+  const marcus = document.getElementById('marcus');
+  [...marcus.classList].filter(c => c.startsWith('anim-')).forEach(c => marcus.classList.remove(c));
+  void marcus.offsetWidth;
+  if      (state === 'triumphant')                          marcus.classList.add('anim-celebrate');
+  else if (state === 'worried')                             marcus.classList.add('anim-worried');
+  else if (state === 'focused' || state === 'determined')   marcus.classList.add('anim-type');
+  else                                                      marcus.classList.add('anim-idle');
+}
+
+/* ── TYPEWRITER ─────────────────────────────────── */
+function typeStep() {
+  const cursor = document.getElementById('cursor');
+  if (!cursor) return;
+  if (typePos < typeText.length) {
+    cursor.insertAdjacentText('beforebegin', typeText[typePos++]);
+    typeTimer = setTimeout(typeStep, 50);
+  } else {
+    typeTimer = null;
+  }
+}
+
+function startTypewriter(text) {
+  if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+  typeText = text;
+  typePos  = 0;
+  document.getElementById('ntext').innerHTML = '<span id="cursor"></span>';
+  typeTimer = setTimeout(typeStep, 300);
+}
+
+/* ── CLEANUP ────────────────────────────────────── */
+function cleanup() {
+  if (typeTimer) { clearTimeout(typeTimer);  typeTimer = null; }
+  if (filterIv)  { clearInterval(filterIv);  filterIv  = null; }
+  if (countIv)   { clearInterval(countIv);   countIv   = null; }
+  tourTimers.forEach(t => clearTimeout(t));
+  tourTimers = [];
+}
+
+/* ── NAVIGATION ─────────────────────────────────── */
+function goTo(n) {
+  cleanup();
+  cur     = Math.max(0, Math.min(13, n));
+  elapsed = 0;
+  document.getElementById('btn-prev').disabled = (cur === 0);
+  document.getElementById('btn-next').disabled = (cur === 13);
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  document.getElementById('scene-' + (cur + 1)).classList.add('active');
+  setExpr(SCENES[cur].state);
+  setAnim(SCENES[cur].state);
+  startTypewriter(SCENES[cur].narration);
+  updateDots();
+  updateLabel();
+  updateProgress();
+  requestAnimationFrame(() => runAnim(cur));
+}
+
+/* ── DOTS / PROGRESS / LABEL ────────────────────── */
+function buildDots() {
+  const wrap = document.getElementById('scene-dots');
+  SCENES.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'sdot';
+    d.addEventListener('click', () => goTo(i));
+    wrap.appendChild(d);
+  });
+}
+
+function updateDots() {
+  document.querySelectorAll('#scene-dots .sdot').forEach((d, i) => {
+    d.className = 'sdot' + (i < cur ? ' past' : i === cur ? ' now' : '');
+  });
+}
+
+function updateProgress() {
+  const frac = Math.min(1, elapsed / SCENES[cur].duration);
+  document.getElementById('progress-fill').style.width = (frac * 100) + '%';
+}
+
+function updateLabel() {
+  document.getElementById('scene-lbl').textContent = (cur + 1) + ' / 14';
+}
+
+/* ── PLAY / PAUSE ───────────────────────────────── */
+function updatePP() {
+  document.getElementById('btn-pp').textContent = playing ? '⏸ Pause' : '▶ Play';
+}
+
+function togglePlay() {
+  playing = !playing;
+  if (!playing) {
+    if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+  } else {
+    if (typePos < typeText.length) typeTimer = setTimeout(typeStep, 50);
+  }
+  updatePP();
+}
+
+/* ── TICKER ─────────────────────────────────────── */
+function tick() {
+  if (!playing) return;
+  elapsed += TICK;
+  updateProgress();
+  if (elapsed >= SCENES[cur].duration) {
+    if (typePos < typeText.length) return;
+    if (cur < 13) goTo(cur + 1);
+    else { playing = false; updatePP(); }
+  }
+}
+
+/* ── SCENE ANIMATIONS ───────────────────────────── */
+function animAppTour() {
+  function switchC(tabId, panelId) {
+    document.querySelectorAll('#at-tabs .at-tab').forEach(t => t.classList.remove('on'));
+    ['at-cp-list','at-cp-exchange','at-cp-attach','at-cp-analytics'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const tab = document.getElementById(tabId);
+    const panel = document.getElementById(panelId);
+    if (tab) tab.classList.add('on');
+    if (panel) { panel.style.display = 'flex'; panel.style.flexDirection = 'column'; }
+  }
+  function switchR(tabId, panelId) {
+    document.querySelectorAll('#at-rtabs .at-rtab').forEach(t => t.classList.remove('on'));
+    ['at-rp-email','at-rp-preview','at-rp-notes'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const tab = document.getElementById(tabId);
+    const panel = document.getElementById(panelId);
+    if (tab) tab.classList.add('on');
+    if (panel) panel.style.display = 'block';
+  }
+  // Reset to initial state
+  switchC('at-tab-list', 'at-cp-list');
+  switchR('at-rtab-email', 'at-rp-email');
+
+  // t=3.5s — Exchange tab (expanded chat with notes visible on cards)
+  tourTimers.push(setTimeout(() => {
+    if (cur !== 12) return;
+    switchC('at-tab-exchange', 'at-cp-exchange');
+  }, 3500));
+
+  // t=7.5s — Still Exchange, but switch right panel to Notes tab
+  // Shows: you wrote notes on cards → here they are collected
+  tourTimers.push(setTimeout(() => {
+    if (cur !== 12) return;
+    switchR('at-rtab-notes', 'at-rp-notes');
+  }, 7500));
+
+  // t=11s — Attachments + Preview
+  tourTimers.push(setTimeout(() => {
+    if (cur !== 12) return;
+    switchC('at-tab-attach', 'at-cp-attach');
+    switchR('at-rtab-preview', 'at-rp-preview');
+  }, 11000));
+
+  // t=14.5s — Analytics
+  tourTimers.push(setTimeout(() => {
+    if (cur !== 12) return;
+    switchC('at-tab-analytics', 'at-cp-analytics');
+    switchR('at-rtab-email', 'at-rp-email');
+  }, 14500));
+}
+
+function animObjEmail() {
+  const container = document.getElementById('s11-scroll');
+  const email     = document.getElementById('s11-email');
+  if (!container || !email) return;
+  container.scrollTop = 0;
+  let pos = 0;
+  const target = email.scrollHeight - container.clientHeight + 40;
+  const scrollIv = setInterval(() => {
+    if (cur !== 10) { clearInterval(scrollIv); return; }
+    pos += 1.2;
+    container.scrollTop = pos;
+    if (pos >= target) clearInterval(scrollIv);
+  }, 30);
+}
+
+function runAnim(idx) {
+  if (idx === 2)  animFilter();
+  if (idx === 3)  animDonuts();
+  if (idx === 4)  animTimeline();
+  if (idx === 5)  animThread();
+  if (idx === 7)  animAttachments();
+  if (idx === 8)  animPreview();
+  if (idx === 9)  animPrint();
+  if (idx === 10) animObjEmail();
+  if (idx === 11) animWin();
+  if (idx === 12) animAppTour();
+}
+
+function animFilter() {
+  const inp   = document.getElementById('mock-filter-3');
+  const badge = document.getElementById('rc-3');
+  const list  = document.getElementById('el-3');
+  if (!inp) return;
+  inp.value           = '';
+  badge.style.opacity = '0';
+  list.innerHTML      = '';
+
+  if (!document.getElementById('slideInR-style')) {
+    const st = document.createElement('style');
+    st.id = 'slideInR-style';
+    st.textContent = '@keyframes slideInR{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}';
+    document.head.appendChild(st);
+  }
+
+  const rows = [
+    { dir: '←', subj: 'Engagement confirmation',      from: 'office@steiner-partner.at', date: 'Jan 8'  },
+    { dir: '→', subj: 'Documents attached',            from: 'me',                        date: 'Jan 15' },
+    { dir: '→', subj: 'Following up – VAT due Feb 15', from: 'me',                  date: 'Feb 3'  },
+    { dir: '←', subj: 'Re: Following up',              from: 'office@steiner-partner.at', date: 'Feb 28' },
+    { dir: '→', subj: 'Q1 summary – please confirm',   from: 'me',                  date: 'Mar 12' },
+    { dir: '→', subj: 'Deadline approaching – urgent', from: 'me',                  date: 'Apr 2'  },
+    { dir: '→', subj: 'Second follow-up',               from: 'me',                       date: 'Apr 18' },
+    { dir: '←', subj: 'Invoice #ST-2024-089',           from: 'office@steiner-partner.at', date: 'Jul 3' },
+  ];
+
+  const target = 'steiner-partner.at';
+  let i = 0;
+  filterIv = setInterval(() => {
+    inp.value = target.slice(0, ++i);
+    if (i >= target.length) {
+      clearInterval(filterIv); filterIv = null;
+      badge.style.opacity = '1';
+      rows.forEach((r, idx) => {
+        const el = document.createElement('div');
+        el.className = 'erow s3-row';
+        el.style.animation      = 'slideInR 0.3s ease both';
+        el.style.animationDelay = (idx * 80) + 'ms';
+        const dc = r.dir === '←' ? 'r' : 's';
+        el.innerHTML = `<div class="erow-dir ${dc}">${r.dir}</div><div class="erow-subj">${r.subj}</div><div class="erow-meta">${r.from}  ·  ${r.date}</div>`;
+        list.appendChild(el);
+      });
+    }
+  }, 55);
+}
+
+function animDonuts() {
+  setTimeout(() => {
+    const d1a = document.getElementById('d1-amber');
+    const d1p = document.getElementById('d1-purple');
+    const d2r = document.getElementById('d2-red');
+    if (d1a) { d1a.style.transition = 'stroke-dasharray 0.6s ease 0.1s'; d1a.style.strokeDasharray = '165.8 226.2'; }
+    if (d1p) { d1p.style.transition = 'stroke-dasharray 0.6s ease 0.3s'; d1p.style.strokeDasharray = '60.4 226.2';  }
+    if (d2r) { d2r.style.transition = 'stroke-dasharray 0.6s ease 0.2s'; d2r.style.strokeDasharray = '165.8 226.2'; }
+  }, 200);
+}
+
+function animTimeline() {
+  setTimeout(() => {
+    const area = document.getElementById('tl-area');
+    const line = document.getElementById('tl-line');
+    if (area) { area.style.transition = 'opacity 0.5s ease'; area.style.opacity = '1'; }
+    if (line) { line.style.transition = 'stroke-dashoffset 1.2s ease'; line.style.strokeDashoffset = '0'; }
+  }, 200);
+}
+
+function animThread() {
+  const msgs = document.querySelectorAll('#tc-6 .chat-msg');
+  msgs.forEach((el, idx) => {
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.opacity = '1'; }, idx * 120);
+  });
+}
+
+function animAttachments() {
+  const hi   = document.getElementById('att-highlight');
+  const c2   = document.getElementById('s8-card2');
+  const c3   = document.getElementById('s8-card3');
+  if (hi) { hi.style.opacity = '1'; hi.style.transform = 'scale(1)'; }
+  if (c2) { c2.style.opacity = '1'; c2.style.transform = 'scale(1)'; }
+  if (c3) { c3.style.opacity = '1'; c3.style.transform = 'scale(1)'; }
+}
+
+function animPreview() {
+  setTimeout(() => {
+    const p3 = document.getElementById('pdf-p3');
+    const p4 = document.getElementById('pdf-p4');
+    if (p3) p3.style.opacity = '1';
+    if (p4) p4.style.opacity = '1';
+  }, 300);
+}
+
+function animPrint() {
+  setTimeout(() => {
+    const btn = document.getElementById('print-btn');
+    if (btn) btn.classList.add('lit');
+  }, 1200);
+  setTimeout(() => {
+    const overlay = document.getElementById('s10-print');
+    if (overlay) {
+      overlay.style.transition = 'opacity 0.5s ease, max-height 0.5s ease';
+      overlay.style.opacity    = '1';
+      overlay.style.maxHeight  = '400px';
+    }
+  }, 1800);
+}
+
+function animWin() {
+  const amt  = document.getElementById('win-amount');
+  const pill = document.getElementById('win-pill');
+  const cap  = document.getElementById('win-cap');
+  if (!amt) return;
+  amt.style.opacity = '0';
+  amt.textContent   = '€0';
+  if (pill) pill.style.opacity = '0';
+  if (cap)  cap.style.opacity  = '0';
+  setTimeout(() => {
+    amt.style.opacity = '1';
+    let count = 0;
+    countIv = setInterval(() => {
+      count = Math.min(count + 12, 360);
+      amt.textContent = '€' + count;
+      if (count >= 360) { clearInterval(countIv); countIv = null; amt.textContent = '€360'; }
+    }, 16);
+  }, 400);
+  setTimeout(() => { if (pill) pill.style.opacity = '1'; }, 1200);
+  setTimeout(() => { if (cap)  cap.style.opacity  = '1'; }, 1800);
+}
+
+/* ── INIT ────────────────────────────────────────── */
+function init() {
+  buildDots();
+  goTo(0);
+  ticker = setInterval(tick, TICK);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+document.getElementById('btn-prev').addEventListener('click', () => goTo(cur - 1));
+document.getElementById('btn-next').addEventListener('click', () => goTo(cur + 1));
+document.getElementById('btn-pp').addEventListener('click', togglePlay);
+
+document.getElementById('progress-track').addEventListener('click', e => {
+  const rect = document.getElementById('progress-track').getBoundingClientRect();
+  elapsed = Math.round((e.clientX - rect.left) / rect.width * SCENES[cur].duration);
+  updateProgress();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === ' ')          { e.preventDefault(); togglePlay(); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); goTo(cur - 1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); goTo(cur + 1); }
+});
+</script>
+</body>
+</html>
