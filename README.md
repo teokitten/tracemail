@@ -1,5 +1,7 @@
 # Tracemail
 
+> Local email investigation tool for Linux. No cloud. No AI. No subscriptions.
+
 Tracemail is a local email investigation workspace for Linux.
 Connect your inbox via IMAP, filter by a name or keyword, and
 explore your correspondence in depth – as a readable chat-style
