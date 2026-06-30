@@ -126,19 +126,19 @@ pyinstaller --onefile --name tracemail \
 
 ## Compatibility
 
-Tracemail binaries are built on a manylinux2014 base (glibc 2.17+) and
-packaged as an AppImage, which is designed to run across most Linux
-distros without installation.
+Tracemail's AppImage requires glibc 2.14 or newer (verified via
+`objdump -T` against the bundled binary), which covers essentially
+all glibc-based Linux distributions released since 2011.
 
 **Tested on:**
-- Ubuntu 22.04 (Linux Mint)
+- Ubuntu 22.04 (Linux Mint, glibc 2.35)
 
 **Should work, not tested:**
-- Other Ubuntu-based distros (Pop!_OS, Zorin, elementary)
-- Debian 11+
-- Fedora, RHEL/Rocky/Alma
-- openSUSE Leap
+- Debian 8+
+- Fedora, RHEL/Rocky/Alma 7+
+- openSUSE Leap and Tumbleweed
 - Arch, Manjaro
+- Other Ubuntu-based distros (Pop!_OS, Zorin, elementary)
 
 This list is based on glibc compatibility, not verification. If you run
 it successfully on a distro not listed here, opening an issue to confirm
