@@ -18,6 +18,7 @@ jobs:
             -w /workspace \
             python:3.11-slim-bookworm \
             bash -c "
+              apt-get update && apt-get install -y --no-install-recommends binutils &&
               pip install --no-cache-dir -r requirements.txt pyinstaller &&
               pyinstaller --onefile --name tracemail --add-data 'templates:templates' app.py
             "
