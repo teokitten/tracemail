@@ -87,9 +87,11 @@ Python 3.11+, pip, git.
 ### Option 1 – Download the binary
 
 1. Go to the [Releases page](https://github.com/teokitten/tracemail/releases)
-2. Download the latest `tracemail` binary
-3. `chmod +x tracemail && ./tracemail`
+2. Download the latest `Tracemail-x86_64.AppImage` file
+3. `chmod +x Tracemail-x86_64.AppImage && ./Tracemail-x86_64.AppImage`
 4. Open http://localhost:5050 in your browser
+
+If the AppImage fails to launch, see Compatibility below.
 
 ### Option 2 – Run from source
 
@@ -121,6 +123,39 @@ pyinstaller --onefile --name tracemail \
   --add-data "templates:templates" app.py
 ./dist/tracemail
 ```
+
+## Compatibility
+
+Tracemail binaries are built on a manylinux2014 base (glibc 2.17+) and
+packaged as an AppImage, which is designed to run across most Linux
+distros without installation.
+
+**Tested on:**
+- Ubuntu 22.04 (Linux Mint)
+
+**Should work, not tested:**
+- Other Ubuntu-based distros (Pop!_OS, Zorin, elementary)
+- Debian 11+
+- Fedora, RHEL/Rocky/Alma
+- openSUSE Leap
+- Arch, Manjaro
+
+This list is based on glibc compatibility, not verification. If you run
+it successfully on a distro not listed here, opening an issue to confirm
+would help others.
+
+**Not supported:**
+- Alpine Linux and other musl-based distros (AppImage requires glibc)
+- ARM architecture (binaries are x86_64 only)
+- Windows, macOS
+
+**If the binary won't run:** AppImage requires FUSE on most distros. If
+you get a "fuse: device not found" error, install `fuse` (or `fuse3`)
+via your package manager, or run with `--appimage-extract-and-run`.
+
+**Fallback for anything not covered above:** run from source (see
+Option 2 above). This works on any system with Python 3.11+,
+regardless of glibc, libc variant, or architecture.
 
 ## App password setup
 
@@ -203,10 +238,10 @@ body but are not part of the direct exchange.
 
 ## Resource usage
 
-No AI model, no GPU, no background processes. Fetches email
-headers in a single IMAP batch call. Full message bodies and
-attachments load on demand. Runs on any Linux hardware that
-can run a browser.
+No GPU, no background processes. Fetches email headers in a
+single IMAP batch call. Full message bodies and attachments
+load on demand. Runs on any Linux hardware that can run a
+browser.
 
 ## Updates
 
@@ -220,7 +255,7 @@ old one.
 Delete the binary:
 
 ```bash
-rm tracemail
+rm Tracemail-x86_64.AppImage
 ```
 
 To remove all cached data, clear site data for
@@ -229,11 +264,8 @@ stored credentials, cached emails, notes, and search history.
 
 ## Known limitations
 
-- Linux only; Windows and macOS aren't currently supported.
-- Gmail requires IMAP to be manually enabled in settings
-  before connecting
-- Outlook work and school accounts may have IMAP disabled
-  by IT policy
+- Linux only. See Compatibility above for distro and
+  architecture details.
 - Yahoo IMAP limits date-range searches to approximately
   1,000 emails regardless of the range selected
 - Full message bodies and attachments load on demand –

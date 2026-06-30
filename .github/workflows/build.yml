@@ -11,18 +11,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
+      - name: Build binary (manylinux2014 / glibc 2.17)
         run: |
-          pip install pyinstaller flask PyPDF2 python-docx reportlab
-      - name: Build binary
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src \
+            quay.io/pypa/manylinux2014_x86_64 \
+            bash -c "
+              /opt/python/cp311-cp311/bin/pip install pyinstaller -r requirements.txt && \
+              /opt/python/cp311-cp311/bin/pyinstaller --onefile --name tracemail \
+                --add-data 'templates:templates' app.py
+            "
+      - name: Download linuxdeploy
         run: |
-          pyinstaller --onefile --name tracemail \
-            --add-data "templates:templates" \
-            app.py
+          curl -fsSL -o linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps
+          cp dist/tracemail AppDir/usr/bin/tracemail
+          cp tracemail.png AppDir/usr/share/icons/hicolor/256x256/apps/tracemail.png
+          ./linuxdeploy --appdir AppDir \
+            --desktop-file tracemail.desktop \
+            --output appimage
       - name: Get short SHA
         id: sha
         run: echo "short=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
@@ -31,5 +42,5 @@ jobs:
         with:
           tag_name: v-${{ steps.sha.outputs.short }}
           name: Tracemail ${{ steps.sha.outputs.short }}
-          files: dist/tracemail
+          files: Tracemail-x86_64.AppImage
           token: ${{ secrets.GITHUB_TOKEN }}
