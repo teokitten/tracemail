@@ -20,9 +20,10 @@ jobs:
             bash -c "
               export DEBIAN_FRONTEND=noninteractive && \
               apt-get update -q && \
-              apt-get install -y software-properties-common && \
+              apt-get install -y software-properties-common curl gnupg && \
               add-apt-repository -y ppa:deadsnakes/ppa && \
-              apt-get install -y python3.11 python3.11-dev python3.11-venv curl && \
+              apt-get update -q && \
+              apt-get install -y python3.11 python3.11-dev python3.11-venv && \
               curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 && \
               python3.11 -m pip install -r requirements.txt pyinstaller && \
               python3.11 -m PyInstaller --onefile --name tracemail \
