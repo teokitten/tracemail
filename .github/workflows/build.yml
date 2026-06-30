@@ -11,27 +11,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build binary (ubuntu:20.04 / glibc 2.31)
+      - name: Build binary (python:3.11-slim-bookworm)
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}:/src" \
-            -w /src \
-            ubuntu:20.04 \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            python:3.11-slim-bookworm \
             bash -c "
-              export DEBIAN_FRONTEND=noninteractive && \
-              apt-get update -q && \
-              apt-get install -y software-properties-common curl gnupg && \
-              mkdir -p /etc/apt/keyrings && \
-              curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBA6932366A755776' \
-                | gpg --dearmor -o /etc/apt/keyrings/deadsnakes.gpg && \
-              echo 'deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu focal main' \
-                > /etc/apt/sources.list.d/deadsnakes.list && \
-              apt-get update -q && \
-              apt-get install -y python3.11 python3.11-dev python3.11-venv && \
-              curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 && \
-              python3.11 -m pip install -r requirements.txt pyinstaller && \
-              python3.11 -m PyInstaller --onefile --name tracemail \
-                --add-data 'templates:templates' app.py
+              pip install --no-cache-dir -r requirements.txt pyinstaller &&
+              pyinstaller --onefile --name tracemail --add-data 'templates:templates' app.py
             "
       - name: Download linuxdeploy
         run: |
