@@ -93,6 +93,7 @@ html, body {
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
   padding: 14px 24px 10px;
 }
@@ -170,11 +171,13 @@ html, body {
 .sdot.now  { background: var(--amber); width: 18px; border-radius: 3px; }
 
 #ntext {
-  font-size: 0.97rem;
-  line-height: 1.65;
+  font-size: 1.03rem;
+  line-height: 1.6;
   color: var(--text);
-  min-height: 3.3em;
+  min-height: 3.2em;
   word-break: break-word;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 #cursor {
@@ -1675,20 +1678,20 @@ html, body {
 
 /* ── SCENES ─────────────────────────────────────── */
 const SCENES = [
-  { narration: "In January I hired Steiner & Partner – a tax consultancy in Vienna – to handle my annual filing. Standard engagement. Flat ceiling of €4,200. They said they’d keep me informed throughout.", state: "calm",       duration: 14000 },
-  { narration: "July. Their invoice arrived. Full €4,200. I had barely heard from them all year. Something felt wrong.",                                                                                                    state: "worried",    duration: 7500  },
-  { narration: "Filtered by their domain. Fifteen emails. Six months. I started reading.",                                                                                                               state: "focused",    duration: 8000  },
-  { narration: "Analytics told the story in seconds. Eleven of those fifteen emails were mine. They sent four. Average response time: twenty-two days. Their own engagement letter specifies five business days.",               state: "focused",    duration: 14000 },
-  { narration: "The activity chart confirmed it. January and February, some back and forth. Then April, May, June – flatline. Three months I spent manually filing my own VAT because I couldn’t reach them.",       state: "focused",    duration: 14000 },
-  { narration: "The Exchange tab made the imbalance impossible to unsee. My messages stacking up on the right. Their four replies scattered on the left – sparse and late.",                                              state: "curious",    duration: 10000 },
-  { narration: "I annotated the most relevant ones directly on the cards. One reply asked me to resend documents I’d already sent twice. A three-week gap before answering a deadline question.",                                  state: "focused",    duration: 13000 },
-  { narration: "Then the Attachments tab surfaced the engagement letter from January – automatically found across all my folders.",                                                                                        state: "excited",    duration: 8500  },
-  { narration: "I opened it right there. Work billed at €120 per hour, per documented engagement. Four emails. Three hours of work at most. €360. Not €4,200.",                                                state: "focused",    duration: 10000 },
-  { narration: "I printed the Exchange view. Every email, every timestamp, every unanswered message. Sent it with a formal objection.",                                                                                        state: "determined", duration: 9000  },
-  { narration: "The objection email wrote itself. The data was already there.", state: "determined", duration: 14000 },
-  { narration: "Steiner & Partner agreed to rebill at documented hours within three days.",                                                                                                                               state: "triumphant", duration: 7000  },
-  { narration: "Connect your inbox. Filter by what matters. Threads, attachments, analytics, notes – everything in one place.", state: "calm", duration: 18000 },
-  { narration: "Your emails don’t lie. Tracemail helps you prove it.",                                                                                                                                                   state: "calm",       duration: 12000 },
+  { narration: "January: I hired Steiner & Partner for my annual filing. Flat ceiling, €4,200. They promised regular updates.",                                                                                             state: "calm",       duration: 7000  },
+  { narration: "July: the invoice arrived – full amount. I’d barely heard from them all year.",                                                                                                                           state: "worried",    duration: 5500  },
+  { narration: "Filtered by their domain: 15 emails, six months. I started reading.",                                                                                                                                    state: "focused",    duration: 4500  },
+  { narration: "11 of 15 emails were mine. They sent 4. Average reply time: 22 days – their own letter promises 5.",                                                                                                     state: "focused",    duration: 6000  },
+  { narration: "The activity chart confirmed it: contact in Jan and Feb, then flatline. I filed my own VAT for three months straight.",                                                                                   state: "focused",    duration: 7000  },
+  { narration: "The Exchange tab made it visible at a glance – my messages piling up right, their replies sparse and late on the left.",                                                                                  state: "curious",    duration: 7000  },
+  { narration: "I annotated the worst cases: documents resent twice, a three-week silence before a deadline question.",                                                                                                   state: "focused",    duration: 6000  },
+  { narration: "The Attachments tab found the January engagement letter automatically, across every folder.",                                                                                                             state: "excited",    duration: 5500  },
+  { narration: "Real math: €120/hour, about 3 hours of actual work. That’s €360 – not €4,200.",                                                                                                                         state: "focused",    duration: 5000  },
+  { narration: "I printed the Exchange view, every timestamp included, and sent a formal objection.",                                                                                                                    state: "determined", duration: 6500  },
+  { narration: "The objection email wrote itself. The data was already there.",                                                                                                                                          state: "determined", duration: 6000  },
+  { narration: "Steiner & Partner agreed to rebill at documented hours within three days.",                                                                                                                              state: "triumphant", duration: 5500  },
+  { narration: "Connect your inbox. Filter by what matters. Threads, attachments, analytics, notes – all in one place.",                                                                                                 state: "calm",       duration: 16000 },
+  { narration: "Your emails don’t lie. Tracemail helps you prove it.",                                                                                                                                                   state: "calm",       duration: 8000  },
 ];
 
 /* ── EXPRESSIONS ─────────────────────────────────── */
@@ -1752,7 +1755,7 @@ function typeStep() {
   if (!cursor) return;
   if (typePos < typeText.length) {
     cursor.insertAdjacentText('beforebegin', typeText[typePos++]);
-    typeTimer = setTimeout(typeStep, 50);
+    typeTimer = setTimeout(typeStep, 32);
   } else {
     typeTimer = null;
   }
@@ -1829,7 +1832,7 @@ function togglePlay() {
   if (!playing) {
     if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
   } else {
-    if (typePos < typeText.length) typeTimer = setTimeout(typeStep, 50);
+    if (typePos < typeText.length) typeTimer = setTimeout(typeStep, 32);
   }
   updatePP();
 }
